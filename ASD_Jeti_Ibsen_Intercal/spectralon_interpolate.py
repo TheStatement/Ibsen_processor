@@ -36,7 +36,7 @@ def interpolate_spectralon(filename, file):
 directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Ibsen Daten\Messworkshop 2016_Stechlinsee Mittwoch\Stechlinsee\Tiefwasser Boje'
 
 
-ibsen_data = reader.read_ibsen_data(directory, 'target000')[0][0]
+ibsen_data = reader.read_ibsen_data(directory, 'target000', '.asc')[0][0]
 spectr = interpolate_spectralon('S1005_22590-41.dat', ibsen_data)
 #print(spectr[0])
 

@@ -10,6 +10,7 @@ import os
 import matplotlib.pyplot as plt
 
 
+
 class File_Reader(object):
     def __init__(self):
         pass
@@ -17,8 +18,13 @@ class File_Reader(object):
     
     def read_ibsen_data(self, directory, filename, file_extension):
         '''
-        takes the input directory from line 22 and a filename as input
-        output: writes a figure of the input file into the same directory
+        Input: input directory, input filename (eg: 'target001') and file extension (eg. '.asc')
+        Output:
+        ['data']
+        ['number_columns']
+        ['comment']
+        ['int_time']
+        ['header']
         '''
 
         input_filename = filename + file_extension
@@ -58,7 +64,8 @@ class File_Reader(object):
         
         np_data = np.array(data_matrix)
         np_data = np.transpose(np_data) #columns contain the formatted data
-        return([np_data, number_columns, comment, int_time, header])
+        return({'data': np_data, 'wavelength': np_data[0], 'number_columns': number_columns, 'comment': comment, 'int_time': int_time, 'header': header})
+
     
     
     def read_jeti(self, directory, filename):
@@ -76,7 +83,9 @@ class File_Reader(object):
         
         np_data = np.array(data_matrix)
         np_data = np.transpose(np_data) #columns contain the formatted data
-        return(np_data, time, int_time)
+        wavelength = np_data[0]
+        return{'data': np_data, 'time': time, 'int_time': int_time, 'wavelength': wavelength}
+
     
     
     def read_asd_data(self, directory, filename):
@@ -89,13 +98,6 @@ class File_Reader(object):
         
         with open(asd_directory, 'r') as asddata:
             searchlines = asddata.readlines()
-            
-    #     for i, line in enumerate(searchlines):
-    #         if '[DataRaw]' in line: # metadata is collected
-    #             beginning_data = i
-    #             tmp = searchlines[i+1].split()
-    #             number_columns = len(tmp) # gets the number of columns, eg 33 for 30 measurements
-    #             comment = searchlines[i-10] # gets the line which contains the comment in the usual format
                 
         for i, line in enumerate(searchlines):
             if i<500:
@@ -104,4 +106,5 @@ class File_Reader(object):
         
         np_data = np.array(data_matrix)
         np_data = np.transpose(np_data) #columns contain the formatted data
-        return(np_data)
+        wavelength = np_data[1] # test if this is true
+        return({'data': np_data, 'wavelength': wavelength})

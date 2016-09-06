@@ -46,8 +46,96 @@ class Ibsen_Evaluation(object):
             
 
 
+
+    
+    def winnow_spectra(self, input_directory, filename, file_extension, std_plus, std_minus, std_r2):
+        '''
+        Output: [data_good_spectra_2, data_bad_spectra, data_mean_2, data_std, data_mean_plus, data_mean_minus]
+        ['good_spectra'] = data_good_spectra_2; all good spectra
+        ['bad_spectra'] = data_bad_spectra; all bad spectra
+        ['wavelength'] = wavelength array of the input file
+        ['mean_good'] = data_mean_2; mean of all good spectra
+        ['std_good'] = data_std; standard deviation of all good spectra
+        ['mean_plus'] = data_mean_plus; mean of all good spectra + standard deviation
+        ['mean_minus'] = data_mean_minus; mean of all good spectra - standard deviation
+        Write all to file?
+        
+        needs unit test
+        '''
+        
+        data = reader.read_ibsen_data(input_directory, filename, file_extension)
+        number_columns = data['number_columns'] # contains the number of data columns.
+        wavelength = data['wavelength']
+        
+        data['data'] = data['data'][3:number_columns] # throws out the first 3 rows with wavelength average and standard deviation
+        number_data_columns = number_columns - 3 # for better readability of code
+        data_sum = np.sum(data['data'][0:number_columns], axis=1) # adds the sum over each data spectrum to data_sum
+        data_sum_mean = np.mean(data_sum) #gets the mean of all sum values
+        data_sum_std = np.std(data_sum) #gets standard deviation
+        
+        
+        data_use = []
+        for i in range(0,number_data_columns): #throws all spectra out which are too bright or dark
+            if ((data_sum[i] - data_sum_mean) < std_plus*data_sum_std) and ((data_sum[i] - data_sum_mean) > -std_minus*data_sum_std): #contains conditions for including or excluding spectra.
+                                                                                                                                        #Separate values are used for upper and lower limit
+                data_use.append(i)
+                
+        data_good_spectra = []
+        data_bad_spectra = []
+        for j in range(0,number_data_columns):
+            if j in data_use: # get all spectra which have not been sorted out from data_use
+                data_good_spectra.append(data['data'][j]) # n+3 because first 3 rows contain wl, mean and std of all spectra
+            else:
+                data_bad_spectra.append(data['data'][j])
+            
+        data_good_spectra = np.array(data_good_spectra) #creates a numpy array from normal python array # kill
+        data_mean = np.mean(data_good_spectra, axis=0) #gets mean over all good spectra, is needed for calculation of R2 values
+        
+        data_use_r2 = [] # contains a R2 value for each spectrum in data_good_spectra
+        for spectrum in data_good_spectra: # only works because this parses in an ordered way
+            R2 = r2_score(data_mean, spectrum) # get R^2 value for each spectrum
+            data_use_r2.append(R2)
+            
+        data_use_r2_mean = np.mean(data_use_r2) #gets the mean of all R^2 values
+        data_use_r2_std = np.std(data_use_r2) #gets standard deviation of R^2 values
+        
+        data_good_spectra_2 = []
+        for value in data_use_r2: # contains all R2 values
+            if value - data_use_r2_mean > -std_r2*data_use_r2_std: # condition to throw out spectra with low r^2, higher value means less spectra
+                data_good_spectra_2.append(data_good_spectra[data_use_r2.index(value)]) # appends good spectra to the list
+            else:
+                data_bad_spectra.append(data_good_spectra[data_use_r2.index(value)]) # appends bad spectra to the list
+                
+        # gets mean and std for the good_spectra_2 for eg plotting
+        data_good_spectra_2 = np.array(data_good_spectra_2) #creates a numpy array from normal python array # kill
+        data_mean_2 = np.mean(data_good_spectra_2, axis=0) #gets mean over all good spectra
+        data_std = np.std(data_good_spectra_2, axis=0, ddof=1) # gets standard deviation of all good spectra
+        data_mean_plus = np.add(data_mean_2, data_std) # mean + std for plotting
+        data_mean_minus = np.subtract(data_mean_2, data_std) # mean - std for plotting
+        
+        print('Number good spectra: ' + str(len(data_good_spectra_2)) + '; number bad spectra: ' + str(len(data_bad_spectra))) # prints a message about the ratio of good and bad spectra
+        #return([data_good_spectra_2, data_bad_spectra, data_mean_2, data_std, data_mean_plus, data_mean_minus])
+        return{'good_spectra': data_good_spectra_2, 'bad_spectra': data_bad_spectra, 'wavelength': wavelength, 'mean_good': data_mean_2, 'std_good': data_std, 'mean_plus': data_mean_plus, 'mean_minus': data_mean_minus}
+
+
+    def plot_all(self, input_directory, file_extension):
+        for file in os.listdir(input_directory):
+            if file.endswith(file_extension):
+                filename, file_extension = os.path.splitext(file)
+                data = reader.read_ibsen_data(input_directory, filename, file_extension)
+                
+            fig = plt.figure(figsize=(18, 10))
+            for i in range(0, data[1]-3):
+                plt.plot(data[0][0], data[0][i+3])
+    
+            fig.savefig(os.path.join(input_directory, str(filename) + '_rawdata.png'))
+            plt.close()
+            
+            
     def reflectance_winnowed(self, directory, dark_current, reference, target, std_dark, std_ref, std_tar_plus, std_tar_minus, std_tar_r2, plot_reflec):
         '''
+        Old program which should not be used anymore, since it is not suitable to work with ibsen Level 1 data
+        
         takes the filenames of input files and calculates reflectance, outliers are thrown out
         also uses input_directory specified in line 22
         std_dark = multiple of the standard deviation calculated from integrals over dark current spectra. Spectra above or below std_dark*standard deviation are ignored
@@ -180,83 +268,3 @@ class Ibsen_Evaluation(object):
         return([wavelength, reflectance, ref_mean, ref_mean2])        # for testing of functionality
         #return([wavelength, reflectance])
         
-    
-    def winnow_spectra(self, input_directory, filename, file_extension, std_plus, std_minus, std_r2):
-        '''
-        Output: [data_good_spectra_2, data_bad_spectra, data_mean_2, data_std, data_mean_plus, data_mean_minus]
-        [0] = data_good_spectra_2; all good spectra
-        [1] = data_bad_spectra; all bad spectra
-        [2] = data_mean_2; mean of all good spectra
-        [3] = data_std; standard deviation of all good spectra
-        [4] = data_mean_plus; mean of all good spectra + standard deviation
-        [5] = data_mean_minus; mean of all good spectra - standard deviation
-        Write all to file?
-        
-        needs unit test
-        '''
-        
-        data = reader.read_ibsen_data(input_directory, filename, file_extension)
-        number_columns = data[1] # contains the number of data columns. 0 = wavelength, 1 = average, 2 = standard deviation, 3-end = measurement data
-        
-        data[0] = data[0][3:data[1]] # throws out the first 3 rows with wavelength average and standard deviation
-        number_data_columns = data[1]-3 # for better readability of code
-        data_sum = np.sum(data[0][0:data[1]], axis=1) # adds the sum over each data spectrum to data_sum
-        data_sum_mean = np.mean(data_sum) #gets the mean of all sum values
-        data_sum_std = np.std(data_sum) #gets standard deviation
-        
-        
-        data_use = []
-        for i in range(0,number_data_columns): #throws all spectra out which are too bright or dark
-            if ((data_sum[i] - data_sum_mean) < std_plus*data_sum_std) and ((data_sum[i] - data_sum_mean) > -std_minus*data_sum_std): #contains conditions for including or excluding spectra.
-                                                                                                                                        #Separate values are used for upper and lower limit
-                data_use.append(i)
-                
-        data_good_spectra = []
-        data_bad_spectra = []
-        for j in range(0,number_data_columns):
-            if j in data_use: # get all spectra which have not been sorted out from data_use
-                data_good_spectra.append(data[0][j]) # n+3 because first 3 rows contain wl, mean and std of all spectra
-            else:
-                data_bad_spectra.append(data[0][j])
-            
-        data_good_spectra = np.array(data_good_spectra) #creates a numpy array from normal python array # kill
-        data_mean = np.mean(data_good_spectra, axis=0) #gets mean over all good spectra, is needed for calculation of R2 values
-        
-        data_use_r2 = [] # contains a R2 value for each spectrum in data_good_spectra
-        for spectrum in data_good_spectra: # only works because this parses in an ordered way
-            R2 = r2_score(data_mean, spectrum) # get R^2 value for each spectrum
-            data_use_r2.append(R2)
-            
-        data_use_r2_mean = np.mean(data_use_r2) #gets the mean of all R^2 values
-        data_use_r2_std = np.std(data_use_r2) #gets standard deviation of R^2 values
-        
-        data_good_spectra_2 = []
-        for value in data_use_r2: # contains all R2 values
-            if value - data_use_r2_mean > -std_r2*data_use_r2_std: # condition to throw out spectra with low r^2, higher value means less spectra
-                data_good_spectra_2.append(data_good_spectra[data_use_r2.index(value)]) # appends good spectra to the list
-            else:
-                data_bad_spectra.append(data_good_spectra[data_use_r2.index(value)]) # appends bad spectra to the list
-                
-        # gets mean and std for the good_spectra_2 for eg plotting
-        data_good_spectra_2 = np.array(data_good_spectra_2) #creates a numpy array from normal python array # kill
-        data_mean_2 = np.mean(data_good_spectra_2, axis=0) #gets mean over all good spectra
-        data_std = np.std(data_good_spectra_2, axis=0, ddof=1) # gets standard deviation of all good spectra
-        data_mean_plus = np.add(data_mean_2, data_std) # mean + std for plotting
-        data_mean_minus = np.subtract(data_mean_2, data_std) # mean - std for plotting
-        
-        print('Number good spectra: ' + str(len(data_good_spectra_2)) + '; number bad spectra: ' + str(len(data_bad_spectra))) # prints a message about the ratio of good and bad spectra
-        return([data_good_spectra_2, data_bad_spectra, data_mean_2, data_std, data_mean_plus, data_mean_minus])
-
-
-    def plot_all(self, input_directory, file_extension):
-        for file in os.listdir(input_directory):
-            if file.endswith(file_extension):
-                filename, file_extension = os.path.splitext(file)
-                data = reader.read_ibsen_data(input_directory, filename, file_extension)
-                
-            fig = plt.figure(figsize=(18, 10))
-            for i in range(0, data[1]-3):
-                plt.plot(data[0][0], data[0][i+3])
-    
-            fig.savefig(os.path.join(input_directory, str(filename) + '_rawdata.png'))
-            plt.close()

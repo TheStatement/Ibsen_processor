@@ -33,12 +33,14 @@ Reader = Reader.File_Reader()
 
 level1  = Ibsen_level1_processor.Ibsen_Level1_Processor()
 input_directory_1 = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Ibsen Daten\Messworkshop 2016_Stechlinsee Mittwoch\Stechlinsee\Tiefwasser Boje'
-output_directory_1 = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Ibsen Daten\Messworkshop 2016_Stechlinsee Mittwoch\Stechlinsee\Tiefwasser Boje_Level 1'
+output_directory_1 = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Ibsen Daten\Messworkshop 2016_Stechlinsee Mittwoch\Stechlinsee\Tiefwasser Boje_Level1'
 
 
-level1.ibsen_level1_processor('darkcurrent000', 'reference000', 'y', input_directory_1, output_directory_1)
-level1.ibsen_level1_processor('darkcurrent000', 'reference000', '', input_directory_1, output_directory_1)
-#level1.ibsen_level1_processor('darkcurrent000', 'target000', '', input_directory_1, output_directory_1)
+# level1.ibsen_level1_processor('darkcurrent000', 'reference000', 'y', input_directory_1, output_directory_1)
+# level1.ibsen_level1_processor('darkcurrent000', 'reference001', 'y', input_directory_1, output_directory_1)
+# level1.ibsen_level1_processor('darkcurrent000', 'reference002', 'y', input_directory_1, output_directory_1)
+# level1.ibsen_level1_processor('darkcurrent001', 'reference003', 'y', input_directory_1, output_directory_1)
+# level1.ibsen_level1_processor('darkcurrent001', 'reference004', 'y', input_directory_1, output_directory_1)
 
 # data_normal = Reader.read_ibsen_data(directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Ibsen Daten\Messworkshop 2016_Stechlinsee Dienstag\Boje Tiefste Stelle\Alle zusammen_Level1', filename = 'target000_1', file_extension = '.ibsenL1')
 # data_winnowed = Reader.read_ibsen_data(directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Ibsen Daten\Messworkshop 2016_Stechlinsee Dienstag\Boje Tiefste Stelle\Alle zusammen_Level1', filename = 'target000', file_extension = '.ibsenL1')
@@ -52,4 +54,4 @@ level1.ibsen_level1_processor('darkcurrent000', 'reference000', '', input_direct
 #  
 # plt.close()
 
-# evaluate.plot_all(r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Ibsen\20160825_Data for aerosol retieval\Dach_DLR_Level1', '.ibsenL1')
+evaluate.plot_all(r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Ibsen Daten\Messworkshop 2016_Stechlinsee Mittwoch\Stechlinsee\Tiefwasser Boje_Level1', '.ibsenL1')

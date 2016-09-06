@@ -38,4 +38,4 @@ class Interpolate_Spectralon(object):
         
         spectralon = np.interp(file, np_data[0], np_data[1])
         
-        return([spectralon, np_data])
+        return({'resampled_spectralon': spectralon, 'spectralon_raw': np_data})

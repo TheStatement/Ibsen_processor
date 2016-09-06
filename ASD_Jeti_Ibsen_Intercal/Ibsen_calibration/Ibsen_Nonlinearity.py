@@ -15,31 +15,38 @@ from scipy.signal.signaltools import wiener
 from signal import signal
 
 
+
 reader = Reader.File_Reader()
 spectralon = spectralon_response.Interpolate_Spectralon()
 ibsen_evaluate = Ibsen_evaluate.Ibsen_Evaluation()
 
 
 ibsen_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\Ibsen\Radiometric Calibration\RASTA\test'
-ref00 = reader.read_ibsen_data(ibsen_directory, 'reference000')
-dark = reader.read_ibsen_data(ibsen_directory, 'darkcurrent000')
-wavelength =  ref00[0][0]
-
+#output_directory = r'C:\Users\ried_st\Desktop'
+ref00 = reader.read_ibsen_data(ibsen_directory, 'reference000', '.asc')
+# dark = reader.read_ibsen_data(ibsen_directory, 'darkcurrent000') # not needed I believe
+wavelength =  ref00['wavelength']
+max_lowest_int_time = 1050 # pick value manually. Needs to be slightly above the hightest value of the lowest integration time
 
 data = np.empty((0,len(wavelength)), int)
 int_times = []
 for file in os.listdir(ibsen_directory):
     if file.endswith('.asc') and 'reference' in file:
         filename, file_extension = os.path.splitext(file)
-        ref = reader.read_ibsen_data(ibsen_directory, filename)
-        dark = reader.read_ibsen_data(ibsen_directory, 'darkcurrent' + filename.strip('reference'))
-        int_times.append(ref[3])
+        ref = reader.read_ibsen_data(ibsen_directory, filename, '.asc')
+        dark = reader.read_ibsen_data(ibsen_directory, 'darkcurrent' + filename.strip('reference'), '.asc')
+        int_times.append(ref['int_time'])
         
-        result = (ref[0][1] - dark[0][1])
+        result = (ref['data'][1] - dark['data'][1])
         data = np.vstack([data, result])
-        
-        
-data = np.transpose(data)[31:953]
+
+data = np.transpose(data)#[54:953] #where do these numbers come from?
+print(data.shape)
+
+values = np.array([max(x) for x in data])
+index = np.where(values > max_lowest_int_time)[0] 
+
+data = data[index[0]:max(index)] # so
 
 
 fig = plt.figure(figsize=(18, 10))
@@ -50,12 +57,12 @@ fig = plt.figure(figsize=(18, 10))
 # print(ergebnis)
 all_values = []
 all_nonlin = []
-for i in range(0,922): #921 or 922
-    DN_values = np.append([data[i]], [1050]) # 1050 is appended to int-time series of channel i
+for line in data:
+    DN_values = np.append(line, [max_lowest_int_time]) # max_lowest_int_time is appended to int-time series of channel i
     DN_values = np.sort(DN_values) # values are sorted for size to enable interpolation
-    interpol = np.interp(1050, data[i], int_times) # interpolates a fake int time
+    interpol = np.interp(max_lowest_int_time, line, int_times) # interpolates a fake int time
     tmp_int_time = np.sort(np.append([int_times], [interpol]))
-    result = np.divide(DN_values, tmp_int_time)*interpol/1050
+    result = np.divide(DN_values, tmp_int_time)*interpol/max_lowest_int_time
     result2 = [result, DN_values]
     
     plt.plot(DN_values, result, marker='x', linestyle='')

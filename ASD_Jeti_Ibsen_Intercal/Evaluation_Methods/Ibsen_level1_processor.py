@@ -48,7 +48,7 @@ class Ibsen_Level1_Processor(object):
                 spectralon_resampled = spectralon_function.interpolate_spectralon(r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\Spectralon Charakterisierung', 'S1005_22590-41.dat', tar[0][i])
                 tar[0][i] = np.divide(tar[0][i], spectralon_resampled[0])
             tar[0][i] = tar[0][i]/tar[3] # tar[3] contains the integration time, this step normalizes to 1ms
-            tar[0][i] = np.multiply(tar[0][i], np.interp(tar[0][0], ibsen_response[0], ibsen_response[1])*10**-6) # mutiplies with the inverse ibsen response, converts units from W/m^3.sr to mW/m^2.nm.srM correction factor is 10**-6
+            tar[0][i] = np.multiply(tar[0][i], np.interp(tar[0][0], ibsen_response[0], ibsen_response[1])*10**-6) # mutiplies with the inverse ibsen response, converts units from W/m^3.sr to mW/m^2.nm.sr correction factor is 10**-6
 
         tar_transpose = np.transpose(tar[0])
         for i in range(0, len(tar[0][0])):
