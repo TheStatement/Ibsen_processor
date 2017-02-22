@@ -7,11 +7,13 @@ Created on 14.04.2016
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from Evaluation_Methods import Reader, spectralon_response, Ibsen_evaluate
+from Evaluation_Methods import Reader, spectralon_response, Ibsen_evaluate, Ibsen_level1_processor
 
 reader = Reader.File_Reader()
 spectralon = spectralon_response.Interpolate_Spectralon()
 ibsen_evaluate = Ibsen_evaluate.Ibsen_Evaluation()
+ibsen_nonlinerity = Ibsen_level1_processor.Evaluation_Calibration()
+ibsen_response = Ibsen_level1_processor.Evaluation_Calibration()
 
 # passende Spektren auswaehlen
 # nonlinearity Korrektur drueber laufen lassen
@@ -21,67 +23,38 @@ ibsen_evaluate = Ibsen_evaluate.Ibsen_Evaluation()
 # abspeichern
 
 
-ibsen_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\Ibsen\Radiometric Calibration\RASTA\test2'
-results_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\Ibsen\Radiometric Calibration\RASTA\results'
-
-nonlinearity = np.genfromtxt(r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\Ibsen\Radiometric Calibration\RASTA\results\nonlinearity_gesamt.dat', delimiter = '    ')
-nonlinearity = np.transpose(nonlinearity) #nonlinearity[0] = DN values; nonlinearity[1] = correction factors
-
-rasta_ptb = np.genfromtxt(r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\Ibsen\Radiometric Calibration\RASTA\results\2016-01_RASTA_1m_rawdata.dat')
-rasta_ptb = np.transpose(rasta_ptb)
-
-x = []
-y = []
-fig = plt.figure(figsize=(18, 10))
-for file in os.listdir(ibsen_directory): # files from directory are parsed
-    if file.endswith('.asc') and 'reference' in file:
-        filename, file_extension = os.path.splitext(file)
-        ref = reader.read_ibsen_data(ibsen_directory, filename, '.asc')
-        dark = reader.read_ibsen_data(ibsen_directory, 'darkcurrent' + filename.strip('reference'), '.asc')
-#         print(ref[0][1][0])
-#         print(np.interp(ref[0][1][0], nonlinearity[0], nonlinearity[1]))
-        for i in range(0, len(ref[0][1])):
-            ref[0][1][i] = ref[0][1][i]/np.interp(ref[0][1][i], nonlinearity[0], nonlinearity[1]) #corrects for nonlinearity
-            
-        
-        result = (ref[0][1] - dark[0][1])/ref[3]
-        wavelength = ref[0][0]
-        x = np.append(x, wavelength)
-        y = np.append(y, result)
-        plt.plot(wavelength, result, label = ref[3])
-        
-plt.xlabel('Wavelength [nm]', fontsize = 18)
-plt.ylabel('DN', fontsize = 18)
-legend = plt.legend(ncol = 2)
-#plt.show()
-plt.close()
 
 
-def kernel(x, shift, sigma):
-    return np.exp(-((x-shift)**2/(2*sigma**2))) 
 
-sigma = 1
-res = []
-xnew = np.arange(min(x), max(x), 6.02)
-for i in xnew:
-    res.append(np.sum(kernel(x, i, sigma)*y)/ np.sum(kernel(x, i, sigma)))
-res = np.array(res)
+# input values and parameters
+input_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\20160525_Radiometric Calibration_Ibsen\RASTA\test'
+output_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\20160525_Radiometric Calibration_Ibsen\RASTA\results'
+output_filename = 'ibsen_nonlinerity_total.asc'
+number_files = 22
+sigma_fine = 15 # of Gaussian filter
+step_size_fine = 2 # of Gaussian filter
+sigma_coarse = 1000
+step_size_coarse = 500
+DN_transition_fine_coarse = 300
+plot = 'y'
+# End input
 
-fig = plt.figure(figsize=(18, 10))
-plt.plot(x, y, marker='x', linestyle='')
-plt.plot(xnew, res, marker='o', linestyle='-')
-plt.show()
-plt.close()
 
-rasta_ptb_resample = np.interp(xnew, rasta_ptb[0], rasta_ptb[1])
-ibsen_response = np.divide(rasta_ptb_resample, res)
+ibsen_nonlinerity.ibsen_nonlinearity_evaluation(input_directory, number_files, output_directory, output_filename, sigma_fine, step_size_fine, sigma_coarse, step_size_coarse, DN_transition_fine_coarse, plot)
 
-fig = plt.figure(figsize=(18, 10))
-plt.plot(xnew, ibsen_response/max(ibsen_response), marker='o', linestyle='-')
-plt.plot(xnew, res/max(res), marker='o', linestyle='-')
-plt.plot(rasta_ptb[0], rasta_ptb[1]/max(rasta_ptb[1]), marker='o', linestyle='-')
-plt.show()
-plt.close()
 
-array_write = np.transpose([xnew, ibsen_response])
-#np.savetxt(fname = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\Ibsen\Radiometric Calibration\RASTA\results\ibsen_response.dat', X = array_write, fmt = '%10.5f', delimiter = ' ')
+
+# input values and parameters for response
+input_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\20160525_Radiometric Calibration_Ibsen\RASTA\test2'
+output_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\20160525_Radiometric Calibration_Ibsen\RASTA\results'
+output_filename = 'ibsen_response.asc'
+nonlinearity_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\20160525_Radiometric Calibration_Ibsen\RASTA\results\ibsen_nonlinerity_total.asc'
+rasta_directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kalibration\PTB_Kalibrierkampagne_2016\2016-01_RASTA_1m_rawdata.dat'
+sigma = 0.3
+step_size = 0.2
+min_int_time = 50
+plot = ''
+# End input
+
+# ibsen_response.get_response(input_directory, output_directory, output_filename, nonlinearity_directory, rasta_directory, sigma, step_size, min_int_time, plot)
+

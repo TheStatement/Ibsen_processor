@@ -9,6 +9,7 @@ import os
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 from Evaluation_Methods import Reader, spectralon_response
+from scipy.optimize import curve_fit
 
 
 spectralon = spectralon_response.Interpolate_Spectralon()
@@ -17,38 +18,28 @@ reader = Reader.File_Reader()
 class Ibsen_Evaluation(object):
     def __init__(self):
         pass
-
+    
     def reflectance_winnowed_l1(self, directory, file_extension, reference, target, std_ref, std_ref_r2, std_tar_plus, std_tar_minus, std_tar_r2, plot_reflec):
+        # is old and needs to be reworked
         
-        wavelength = reader.read_ibsen_data(directory, target, file_extension)[0][0] #contains the wavelengths for plotting
+        wavelength = reader.read_ibsen_data(directory, target, file_extension)['wavelength'] #contains the wavelengths for plotting
         
         '''
         reminder:
-        read_data returns: return([np_data, number_columns, comment, int_time, header])
+        read_data returns: ({'data': np_data, 'wavelength': np_data[0], 'number_columns': number_columns, 'comment': comment, 'int_time': int_time, 'header': header})
         '''
         ref = Ibsen_Evaluation.winnow_spectra(self, directory, reference, file_extension, std_ref, std_ref, std_ref_r2)
         tar = Ibsen_Evaluation.winnow_spectra(self, directory, target, file_extension, std_tar_plus, std_tar_minus, std_tar_r2)
-        
-#                 Output: [data_good_spectra_2, data_bad_spectra, data_mean_2, data_std, data_mean_plus, data_mean_minus]
-#         [0] = data_good_spectra_2; all good spectra
-#         [1] = data_bad_spectra; all bad spectra
-#         [2] = data_mean_2; mean of all good spectra
-#         [3] = data_std; standard deviation of all good spectra
-#         [4] = data_mean_plus; mean of all good spectra + standard deviation
-#         [5] = data_mean_minus; mean of all good spectra - standard deviation
-#         Write all to file?
+
         reflectance = tar[2]/ref[2]*100
 
         if plot_reflec == 'y': # reflectance is returned
             return([wavelength, reflectance])
         else: # only the mean of the winnowed target spectrum is returned
             return([wavelength, tar[2]])
-            
-
-
-
     
-    def winnow_spectra(self, input_directory, filename, file_extension, std_plus, std_minus, std_r2):
+
+    def winnow_spectra(self, input_directory, filename, file_extension, lower_wl, std_plus, std_minus, std_r2):
         '''
         Output: [data_good_spectra_2, data_bad_spectra, data_mean_2, data_std, data_mean_plus, data_mean_minus]
         ['good_spectra'] = data_good_spectra_2; all good spectra
@@ -63,7 +54,7 @@ class Ibsen_Evaluation(object):
         needs unit test
         '''
         
-        data = reader.read_ibsen_data(input_directory, filename, file_extension)
+        data = reader.read_ibsen_data(input_directory, lower_wl, filename, file_extension)
         number_columns = data['number_columns'] # contains the number of data columns.
         wavelength = data['wavelength']
         
@@ -118,20 +109,121 @@ class Ibsen_Evaluation(object):
         return{'good_spectra': data_good_spectra_2, 'bad_spectra': data_bad_spectra, 'wavelength': wavelength, 'mean_good': data_mean_2, 'std_good': data_std, 'mean_plus': data_mean_plus, 'mean_minus': data_mean_minus}
 
 
-    def plot_all(self, input_directory, file_extension):
+    def plot_all(self, input_directory, file_extension, lower_wl, instrument):
         for file in os.listdir(input_directory):
             if file.endswith(file_extension):
                 filename, file_extension = os.path.splitext(file)
-                data = reader.read_ibsen_data(input_directory, filename, file_extension)
-                
-            fig = plt.figure(figsize=(18, 10))
-            for i in range(0, data[1]-3):
-                plt.plot(data[0][0], data[0][i+3])
+                fig = plt.figure(figsize=(18, 10))
+                if instrument == 'asd':
+                    data = reader.read_asd_data(input_directory, filename, file_extension)
+                    plt.plot(data['wavelength'], data['data'][2])
+
+                else:
+                    data = reader.read_ibsen_data(input_directory, lower_wl, filename, file_extension)
+                    for i in range(3, data['number_columns']):
+                        plt.plot(data['wavelength'], data['data'][i]) # was i+3, is not correct any more. Change if error arises
     
             fig.savefig(os.path.join(input_directory, str(filename) + '_rawdata.png'))
             plt.close()
             
             
+    def get_peak_wl(self, input_directory, filename_data, lower_wl, filename_darkcurrent, guess, plot, plot_title, curve_type, spectrometer_type, image_output_directory):
+        
+        if spectrometer_type == 'ibsen':
+            wavelength = reader.read_ibsen_data(input_directory, lower_wl, filename_data[0], '.asc')['wavelength']
+            darkcurrent = reader.read_ibsen_data(input_directory, lower_wl, filename_darkcurrent, '.asc')['mean'] # reads reference data
+            
+            data = np.zeros_like(wavelength)
+            for file in filename_data:
+                tmp = reader.read_ibsen_data(input_directory, lower_wl, file, '.asc')['mean'] # reads reference data
+                tmp = tmp - darkcurrent
+                data += tmp
+                
+        if spectrometer_type == 'jeti':
+            jeti_data = np.genfromtxt(input_directory, delimiter = '\t')
+            jeti_data = np.transpose(jeti_data)
+            wavelength = jeti_data[0]
+            
+            data = np.zeros_like(wavelength)
+            for file in filename_data:
+                tmp = jeti_data[file]
+                data += tmp
+                
+        if spectrometer_type == 'asd':
+            wavelength_cutoff = 3000 # value larger than highest ASD wavelength
+            wavelength = reader.read_asd_data(input_directory, filename_data[0], '.asc', wavelength_cutoff)['wavelength']
+            
+            data = np.zeros_like(wavelength)
+            for file in filename_data:
+                tmp = reader.read_asd_data(input_directory, file, '.asc', wavelength_cutoff)['data']
+                data += tmp
+            
+#         ibsen_hg = reader.read_ibsen_data(input_directory, filename_data, '.asc') # reads reference data
+#         darkcurrent_hg = reader.read_ibsen_data(input_directory, filename_darkcurrent, '.asc') # reads reference data
+        
+        
+        x = wavelength
+        y = data
+        
+        
+        plt.plot(x,y)
+        if plot == 'y':
+            plt.show()
+        
+        def func(x, *params): #To use curve_fit, we need a model function, call it func, that takes x and our (guessed) parameters as arguments and returns the corresponding values for y. As our model, we use a sum of gaussians:
+            y = np.zeros_like(x)
+            for i in range(0, len(params), 3):
+                ctr = params[i]
+                amp = params[i+1]
+                wid = params[i+2]
+                if curve_type == 'gauss':
+                    y = y + amp * np.exp( -((x - ctr)/wid)**2) # Gaussian
+                if curve_type == 'lorentz':
+                    y = y + amp * wid**2 / ((x - ctr)**2 + wid**2) # Lorentzian
+            return y
+        
+        popt, pcov = curve_fit(func, x, y, p0 = guess) # performs the actual fit
+        fitcurve = func(x, *popt) # for plotting
+        
+        central_wl = []
+        peak_height = []
+        peak_width = []
+        for i in range(0, int(len(popt)/3)):
+            central_wl.append(popt[3*i])
+            peak_height.append(popt[3*i+1])
+            peak_width.append(popt[3*i+2])
+        
+        fig = plt.figure(figsize=(12, 7))
+        plt.plot(x, y)
+        plt.plot(x, fitcurve, 'r-')
+
+        plt.xlabel(r'Wavelength $[nm]$', fontsize = 18)
+        plt.ylabel('DN', fontsize = 18)
+        fig.suptitle(plot_title)
+        # legend = plt.legend(ncol = 1, loc = 1)
+        if plot == 'y':
+            plt.show()
+            
+        if image_output_directory != '':
+            filename = os.path.join(image_output_directory, plot_title) + '.png'
+            fig.savefig(filename)
+        # plt.close()
+        
+        return({'central_wl': central_wl, 'peak_height': peak_height, 'peak_width': peak_width, 'covariance': pcov})
+    
+    def adjust_length(self, parameter, length, character):
+        '''adjust_length adds characters to the left of the string to adjust, till the given length is reached
+        It takes a string as 'parameter' and a integer as 'length' '''
+        if type(parameter) != type('') or type(length) != type(1):
+            print ('Type of adjust_length input parameters is not correct')
+        if len(parameter) > length:
+            print('parameter <' + parameter + '> is too long!')
+        else:
+            while len(parameter) < length:
+                parameter = character + parameter
+        return (parameter)
+    
+     
     def reflectance_winnowed(self, directory, dark_current, reference, target, std_dark, std_ref, std_tar_plus, std_tar_minus, std_tar_r2, plot_reflec):
         '''
         Old program which should not be used anymore, since it is not suitable to work with ibsen Level 1 data

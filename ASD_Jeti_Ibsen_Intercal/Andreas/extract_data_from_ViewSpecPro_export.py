@@ -9,8 +9,8 @@ import os
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 
-directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Andreas ASD\ASCII_data\with radiometric calibration'
-filename = 'rawdata_radiometric cal.dat'
+directory = r'C:\Users\ried_st\OneDrive\Austausch\Messdaten\Kampagnen\Interkalibrationskampagne\Atwood_Stechlinsee_31_05_2015\ASCII_Data'
+filename = 'raw_data_radiometric_cal.dat'
 
 
 
