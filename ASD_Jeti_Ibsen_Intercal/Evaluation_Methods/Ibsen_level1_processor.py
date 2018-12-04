@@ -40,7 +40,6 @@ class Evaluation_Calibration(object):
         if plot == 'y':
             plt.show()
         plt.close()
-        plt.close()
 
    
         
